@@ -1,74 +1,55 @@
 import { Outlet } from 'react-router-dom';
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, PlusCircle, Users, Wrench, BarChart2, Settings, Bell, Menu } from 'lucide-react';
+import { Bell, User, Search, Plus, X } from 'lucide-react';
 
-const adminNavItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-  { label: 'Assets', icon: Package, to: '/admin/assets' },
-  { label: 'Add Asset', icon: PlusCircle, to: '/admin/add-asset' },
-  { label: 'Users', icon: Users, to: '/admin/users' },
-  { label: 'Maintenance', icon: Wrench, to: '/admin/maintenance' },
-  { label: 'Reports', icon: BarChart2, to: '/admin/reports' },
-  { label: 'Settings', icon: Settings, to: '/admin/settings' },
-];
-
-const AdminTopNav = () => (
-  <header className="bg-[#24344d] border-b border-[#1b273b] px-6 py-3.5 flex items-center justify-between z-20">
-    <div className="flex items-center gap-4">
-      <Menu size={24} className="text-white cursor-pointer" />
-      <h1 className="text-lg font-medium text-white tracking-wide">Asset Management System</h1>
-    </div>
-    <div className="flex items-center gap-5">
-      <button className="relative flex items-center justify-center text-slate-300 hover:text-white transition-colors">
-        <Bell size={20} className="fill-white self-center text-white"/>
-        <span className="absolute top-0 right-0 w-2 h-2 bg-white rounded-full"></span>
-      </button>
-      <div className="flex items-center gap-3 cursor-pointer group">
-        <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-500 bg-white">
-          <img src="https://ui-avatars.com/api/?name=John+Admin&background=0D8ABC&color=fff" alt="Admin Avatar" className="w-full h-full object-cover" />
+const AdminLayout = () => {
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+      {/* Top Navigation */}
+      <header className="h-20 bg-white border-b border-gray-200 px-6 lg:px-8 flex items-center justify-between shadow-sm z-10">
+        {/* Left side - Title and Search */}
+        <div className="flex items-center gap-6 flex-1">
+          <h1 className="text-2xl font-bold text-gray-900">Asset Management System</h1>
+          
+          {/* Search Bar */}
+          <div className="relative max-w-md flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Search assets..."
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+            />
+          </div>
         </div>
-        <span className="text-sm font-medium text-white">John Admin</span>
-      </div>
-    </div>
-  </header>
-);
 
-const AdminSidebar = () => {
-  const location = useLocation();
-  return (
-    <aside className="w-[190px] flex-shrink-0 bg-[#2f435c] flex flex-col h-full z-10 border-r border-[#1b273b]">
-      <nav className="flex-1 pt-6 pb-4 flex flex-col overflow-y-auto">
-        {adminNavItems.map((item) => {
-          const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.label}
-              to={item.to}
-              className={`flex items-center gap-3 px-6 py-3.5 text-sm font-medium transition-all duration-200 cursor-pointer ${
-                isActive ? 'bg-[#1a6ac9] text-white border-l-4 border-white' : 'text-[#aabacc] hover:bg-white/5 hover:text-white border-l-4 border-transparent'
-              }`}
-            >
-              <Icon size={18} />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-    </aside>
-  );
-};
+        {/* Right side - Add Asset, Notifications, Profile */}
+        <div className="flex items-center gap-4">
+          {/* Add Asset Button */}
+          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
+            <Plus size={20} />
+            <span className="font-medium hidden sm:inline">Add Asset</span>
+          </button>
+          
+          {/* Notifications */}
+          <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+            <Bell size={20} />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+          </button>
+          
+          {/* User Profile */}
+          <div className="flex items-center gap-3 cursor-pointer group hover:bg-gray-100 p-2 rounded-lg transition-colors">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-md">
+              <User size={20} />
+            </div>
+          </div>
+        </div>
+      </header>
 
-export const AdminLayout = () => {
-  return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#f4f7fa]">
-      <AdminTopNav />
-      <div className="flex-1 flex overflow-hidden">
-        <AdminSidebar />
-        <main className="flex-1 overflow-y-auto p-6 lg:px-10 lg:py-8">
-          <Outlet />
-        </main>
-      </div>
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-auto bg-gray-50">
+        <Outlet />
+      </main>
     </div>
   );
 };
+
+export default AdminLayout;

@@ -1,187 +1,314 @@
-import { useEffect, useState } from 'react';
-import { useUser } from '../context/UserContext';
-import { Search } from 'lucide-react';
-
-const statusClass = {
-  'Available': 'badge-available',
-  'In Use': 'badge-inuse',
-  'Under Maintenance': 'badge-maintenance',
-};
-
-const DUMMY_ASSETS = [
-  { id: 1, name: 'Dell Laptop', category: 'Electronics', status: 'Available', assignedTo: 'Michael' },
-  { id: 2, name: 'Projector', category: 'Electronics', status: 'In Use', assignedTo: 'Sarah' },
-  { id: 3, name: 'iPad', category: 'Electronics', status: 'Under Maintenance', assignedTo: '-' },
-  { id: 4, name: 'Headphones', category: 'Electronics', status: 'Available', assignedTo: 'Unassigned' },
-  { id: 5, name: 'Printer', category: 'Electronics', status: 'Available', assignedTo: 'David' }
-];
-
-const categories = ['All', 'Electronics', 'Furniture', 'Equipment'];
+import { useState, useEffect } from 'react';
+import { 
+  Plus, 
+  Search, 
+  Filter, 
+  MoreVertical, 
+  Edit, 
+  Trash2, 
+  ExternalLink,
+  X,
+  Check
+} from 'lucide-react';
+import axios from 'axios';
 
 const AssetsPage = () => {
-  const { user } = useUser();
-  const isAdmin = user.role === 'admin';
+  const [assets, setAssets] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [miniCategories, setMiniCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Modal states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newAsset, setNewAsset] = useState({
+    name: '',
+    category_id: '',
+    mini_category_id: '',
+    serialNumber: '',
+    purchaseDate: new Date().toISOString().split('T')[0],
+    status: 'Available',
+    assignedTo: ''
+  });
 
-  const [assets, setAssets] = useState(DUMMY_ASSETS);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [activeCategoryTab, setActiveCategoryTab] = useState('Electronics');
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  const filteredAssets = assets.filter(asset =>
-    asset.name.toLowerCase().includes(search.toLowerCase()) &&
-    (statusFilter === '' || asset.status === statusFilter) &&
-    (isAdmin ? (categoryFilter === '' || asset.category === categoryFilter) : (activeCategoryTab === 'All' || asset.category === activeCategoryTab))
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [assetsRes, catsRes, miniCatsRes] = await Promise.all([
+        axios.get('/api/assets'),
+        axios.get('/api/categories'),
+        axios.get('/api/categories/mini/all')
+      ]);
+      setAssets(assetsRes.data);
+      setCategories(catsRes.data);
+      setMiniCategories(miniCatsRes.data);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateAsset = async (e) => {
+    e.preventDefault();
+    try {
+      // Find category name for legacy 'category' field in DB if needed
+      const catName = categories.find(c => c.id === parseInt(newAsset.category_id))?.name || '';
+      
+      await axios.post('/api/assets', {
+        ...newAsset,
+        category: catName // backend handles saving to assets table
+      });
+      
+      setShowAddModal(false);
+      setNewAsset({
+        name: '',
+        category_id: '',
+        mini_category_id: '',
+        serialNumber: '',
+        purchaseDate: new Date().toISOString().split('T')[0],
+        status: 'Available',
+        assignedTo: ''
+      });
+      fetchData();
+    } catch (err) {
+      console.error('Error creating asset:', err);
+    }
+  };
+
+  const filteredAssets = assets.filter(asset => 
+    asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (asset.assignedTo && asset.assignedTo.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  return (
-    <div className="max-w-[1000px] pb-10">
-      {/* Page Header */}
-      <h2 className="text-3xl font-bold text-[#203147] mb-7">Assets</h2>
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Available': return 'badge-available';
+      case 'In Use': return 'badge-inuse';
+      case 'Maintenance': return 'badge-maintenance';
+      default: return 'bg-slate-100 text-slate-600';
+    }
+  };
 
-      {/* Category Pills */}
-      <div className="flex gap-2.5 mb-7">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategoryTab(cat)}
-            className={`relative px-5 py-2 rounded text-sm font-medium border transition-colors ${
-              activeCategoryTab === cat
-                ? 'bg-[#1a6ac9] text-white border-[#1a6ac9]'
-                : 'bg-white text-[#5c6e83] border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            {cat}
-            {/* Caret for active tab */}
-            {activeCategoryTab === cat && (
-              <span className="absolute -bottom-[6px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-t-[6px] border-t-[#1a6ac9] border-r-[6px] border-r-transparent"></span>
-            )}
-          </button>
-        ))}
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 brand-font">Asset Inventory</h1>
+          <p className="text-sm text-slate-500 font-medium">Manage and track all company equipment</p>
+        </div>
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="btn-primary flex items-center justify-center gap-2"
+        >
+          <Plus size={20} /> Add New Asset
+        </button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            id="asset-search"
-            type="text"
-            placeholder="Search assets..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-[#f6f8fb] sm:bg-white border border-slate-200 rounded text-sm focus:outline-none"
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search by name, serial, or user..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all text-sm"
           />
         </div>
-        {isAdmin && (
-          <>
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none bg-white border border-slate-200 rounded pl-4 pr-10 py-2.5 text-sm text-[#5c6e83] focus:outline-none min-w-[200px]"
-              >
-                <option value="">Filter by Status</option>
-                <option value="Available">Available</option>
-                <option value="In Use">In Use</option>
-                <option value="Under Maintenance">Under Maintenance</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
-              </div>
-            </div>
-            <div className="relative">
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="appearance-none bg-white border border-slate-200 rounded pl-4 pr-10 py-2.5 text-sm text-[#5c6e83] focus:outline-none min-w-[200px]"
-              >
-                <option value="">Filter by Category</option>
-                <option value="Electronics">Electronics</option>
-                <option value="Furniture">Furniture</option>
-                <option value="Equipment">Equipment</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
-              </div>
-            </div>
-          </>
-        )}
+        <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all">
+          <Filter size={18} /> Filters
+        </button>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded border border-slate-200 overflow-hidden mt-2">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-[#f2f5f8] border-b border-slate-200">
-              <th className="py-3.5 px-6 text-[13px] font-bold text-[#203147] tracking-wide w-[18%]">Name</th>
-              <th className="py-3.5 px-6 text-[13px] font-bold text-[#203147] tracking-wide w-[18%]">Category</th>
-              <th className="py-3.5 px-6 text-[13px] font-bold text-[#203147] tracking-wide w-[20%]">Status</th>
-              {isAdmin ? (
-                <th className="py-3.5 px-6 text-[13px] font-bold text-[#203147] tracking-wide w-[20%]">Assigned To</th>
-              ) : (
-                <th className="py-3.5 px-6 text-[13px] font-bold text-[#203147] tracking-wide w-[20%]">Status</th>
-              )}
-              <th className={`py-3.5 px-6 text-[13px] font-bold text-[#203147] tracking-wide ${isAdmin ? 'text-center' : ''}`}>{isAdmin ? 'Actions' : 'Action'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAssets.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center py-10 text-slate-400 text-sm">
-                  No assets found.
-                </td>
+      <div className="premium-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50 border-b border-slate-200">
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Asset Details</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Assigned To</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
-            ) : (
-              filteredAssets.map((asset, index) => (
-                <tr key={index} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
-                  <td className="py-4 px-6 text-[14px] text-[#203147] font-medium">{asset.name}</td>
-                  <td className="py-4 px-6 text-[14px] text-[#203147] font-medium">{asset.category}</td>
-                  <td className="py-4 px-6">
-                    <span className={statusClass[asset.status] || 'badge bg-slate-400 text-white'}>
-                      {asset.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-[14px] text-[#203147] flex items-center h-[60px]">
-                    {asset.assignedTo === '-' && !isAdmin ? (
-                      <span className="text-slate-400 text-[10px] w-4 mt-auto mb-auto bg-transparent">▴</span>
-                    ) : (
-                      <span className="font-medium">{asset.assignedTo}</span>
-                    )}
-                  </td>
-                  <td className="py-4 px-6">
-                    {isAdmin ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <button className="bg-[#1a6ac9] hover:bg-blue-700 text-white text-xs font-medium px-4 py-1.5 rounded">
-                          View
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-sm">
+              {loading ? (
+                Array(5).fill(0).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td colSpan={5} className="px-6 py-6 h-16 bg-slate-50/20"></td>
+                  </tr>
+                ))
+              ) : filteredAssets.length > 0 ? (
+                filteredAssets.map((asset) => (
+                  <tr key={asset.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-slate-900">{asset.name}</div>
+                      <div className="text-xs text-slate-400 font-medium">S/N: {asset.serialNumber}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-700">{asset.category_name}</span>
+                        <span className="text-[11px] text-slate-400 italic">{asset.mini_category_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`badge ${getStatusColor(asset.status)}`}>
+                        {asset.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-medium text-slate-600">
+                      {asset.assignedTo || '--'}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                          <Edit size={16} />
                         </button>
-                        <button className="bg-[#f0ad4e] hover:bg-orange-500 text-white text-xs font-medium px-4 py-1.5 rounded">
-                          Edit
-                        </button>
-                        <button className="bg-[#d9534f] hover:bg-red-600 text-white text-xs font-medium px-4 py-1.5 rounded">
-                          Delete
+                        <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                          <Trash2 size={16} />
                         </button>
                       </div>
-                    ) : (
-                      <div className="flex items-center">
-                        {asset.status === 'Available' ? (
-                          <button className="bg-[#28a745] hover:bg-green-600 text-white text-xs font-medium px-4 py-1.5 rounded">
-                            Request
-                          </button>
-                        ) : (
-                          <button className="bg-[#7d8b9e] text-white text-xs font-medium px-4 py-1.5 rounded cursor-not-allowed">
-                            Unavailable
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-medium">
+                    No assets found matching your search.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* Add Asset Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#0f172a]/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)}></div>
+          <div className="bg-white rounded-2xl w-full max-w-xl relative flex flex-col max-h-[90vh] shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-900 brand-font">New Asset Registration</h3>
+              <button onClick={() => setShowAddModal(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateAsset} className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Asset Name *</label>
+                  <input 
+                    type="text" required
+                    value={newAsset.name}
+                    onChange={(e) => setNewAsset({...newAsset, name: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none text-sm"
+                    placeholder="e.g. MacBook Pro M3"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Category *</label>
+                  <select 
+                    required
+                    value={newAsset.category_id}
+                    onChange={(e) => setNewAsset({...newAsset, category_id: e.target.value, mini_category_id: ''})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-600 outline-none text-sm"
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Mini Category</label>
+                  <select 
+                    value={newAsset.mini_category_id}
+                    onChange={(e) => setNewAsset({...newAsset, mini_category_id: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-600 outline-none text-sm"
+                    disabled={!newAsset.category_id}
+                  >
+                    <option value="">Select Mini Category</option>
+                    {miniCategories
+                      .filter(m => m.category_id === parseInt(newAsset.category_id))
+                      .map(m => <option key={m.id} value={m.id}>{m.name}</option>)
+                    }
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Serial Number *</label>
+                  <input 
+                    type="text" required
+                    value={newAsset.serialNumber}
+                    onChange={(e) => setNewAsset({...newAsset, serialNumber: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-600 outline-none text-sm"
+                    placeholder="XYZ-123-456"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Purchase Date</label>
+                  <input 
+                    type="date"
+                    value={newAsset.purchaseDate}
+                    onChange={(e) => setNewAsset({...newAsset, purchaseDate: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-600 outline-none text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Status</label>
+                  <select 
+                    value={newAsset.status}
+                    onChange={(e) => setNewAsset({...newAsset, status: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-600 outline-none text-sm"
+                  >
+                    <option value="Available">Available</option>
+                    <option value="In Use">In Use</option>
+                    <option value="Maintenance">Maintenance</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Assign To (Optional)</label>
+                  <input 
+                    type="text"
+                    value={newAsset.assignedTo}
+                    onChange={(e) => setNewAsset({...newAsset, assignedTo: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-600 outline-none text-sm"
+                    placeholder="User name"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 btn-primary py-3 font-bold"
+                >
+                  Save Asset
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
