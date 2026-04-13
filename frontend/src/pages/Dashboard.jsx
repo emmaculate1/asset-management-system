@@ -291,7 +291,7 @@ const Dashboard = () => {
             <span className="text-[10px] font-bold text-[#1a5baf] bg-[#1a5baf]/10 px-2 py-1 rounded-md">April 2024</span>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center mb-2">
-            {['S','M','T','W','T','F','S'].map(d => <span key={d} className="text-[10px] font-bold text-gray-400">{d}</span>)}
+            {['S','M','T','W','T','F','S'].map((d, index) => <span key={`day-${index}`} className="text-[10px] font-bold text-gray-400">{d}</span>)}
           </div>
           <div className="grid grid-cols-7 gap-1 flex-1">
             {/* Blanks for month offset - just 1 for visual layout */}

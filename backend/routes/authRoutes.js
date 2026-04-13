@@ -5,30 +5,66 @@ const pool = require('../config/db');
 
 const JWT_SECRET = 'your_jwt_secret_key_change_this_for_prod';
 
+// @route   POST api/auth/register
+// @desc    Register a new user
+router.post('/register', async (req, res) => {
+  const { username, email, password } = req.body;
+
+  try {
+    // Check if user already exists
+    const [existing] = await pool.query('SELECT * FROM users WHERE username = ? OR email = ?', [username, email]);
+    if (existing.length > 0) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    // Insert new user
+    const [result] = await pool.query('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', [username, email, password]);
+    
+    const payload = {
+      user: {
+        id: result.insertId,
+        username,
+        email,
+        role: 'user'
+      }
+    };
+
+    jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
+      if (err) throw err;
+      res.json({ token, user: payload.user });
+    });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // @route   POST api/auth/login
-// @desc    Admin login
+// @desc    User login
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const [rows] = await pool.query('SELECT * FROM admin_users WHERE username = ?', [username]);
+    const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
     
     if (rows.length === 0) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const admin = rows[0];
+    const user = rows[0];
 
     // Simple password check (in production use bcrypt)
-    if (password !== admin.password) {
+    if (password !== user.password) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     const payload = {
       user: {
-        id: admin.id,
-        username: admin.username,
-        role: 'admin'
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: 'user'
       }
     };
 

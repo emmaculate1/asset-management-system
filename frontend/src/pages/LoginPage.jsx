@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Shield, Lock, User, AlertCircle } from 'lucide-react';
 
 const LoginPage = () => {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -20,7 +20,7 @@ const LoginPage = () => {
     try {
       const result = await login(username, password);
       if (result.success) {
-        navigate('/admin/dashboard');
+        navigate('/dashboard');
       } else {
         setError(result.message);
       }
@@ -43,7 +43,7 @@ const LoginPage = () => {
             <Shield className="text-white" size={32} />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2 brand-font">Asset Management</h1>
-          <p className="text-slate-400">Admin Portal Access</p>
+          <p className="text-slate-400">User Portal Access</p>
         </div>
 
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 p-8 rounded-2xl shadow-2xl relative overflow-hidden group">
@@ -103,7 +103,10 @@ const LoginPage = () => {
 
         <div className="mt-8 text-center">
           <p className="text-slate-500 text-sm">
-            &copy; 2026 AssetSys Admin. Secure Environment.
+            Don't have an account? <Link to="/register" className="text-blue-400 hover:text-blue-300">Register here</Link>
+          </p>
+          <p className="text-slate-500 text-sm mt-2">
+            &copy; 2026 AssetSys. Secure Environment.
           </p>
         </div>
       </div>
